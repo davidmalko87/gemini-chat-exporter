@@ -1,0 +1,49 @@
+# ============================================================================
+# SENSITIVE EXPORT DATA — NEVER COMMIT
+# Real Gemini exports contain private conversations (people, health, etc.).
+# These patterns block them from the very first commit.
+# ============================================================================
+Gemini_Conversations_Export.txt
+*_Export.txt
+*_export.txt
+*.ndjson
+out/
+backups/
+exports/
+takeout/
+Takeout/
+*.zip
+
+# Credentials / config — NEVER commit
+.env
+
+# Logs
+*.log
+
+# Verifier / reconcile output
+verify_report.json
+reconcile_report.json
+manifest.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local tooling config (not part of the tool)
+.claude/

@@ -1,0 +1,88 @@
+
+========================================
+CONVERSATION 1: Capital of France
+[id: aaaa000000000001]
+========================================
+
+[DAVID]:
+What is the capital of France?
+
+[GEMINI]:
+The capital of France is Paris.
+
+========================================
+CONVERSATION 2: Recursion explained
+[id: aaaa000000000002]
+========================================
+
+[DAVID]:
+Explain recursion briefly.
+
+[GEMINI]:
+Recursion is when a function calls itself to solve smaller subproblems.
+
+========================================
+CONVERSATION 3: Photosynthesis
+[id: aaaa000000000003]
+========================================
+
+[DAVID]:
+How does photosynthesis work?
+
+[GEMINI]:
+Plants convert light, water and carbon dioxide into glucose and oxygen.
+
+========================================
+CONVERSATION 4: Stub overwrite A
+[id: aaaa000000000004]
+========================================
+
+[DAVID]:
+Please list some hobbies for self-realization.
+
+[GEMINI]:
+This is the stale placeholder body that got duplicated into every later slot.
+
+========================================
+CONVERSATION 5: Stub overwrite B
+[id: aaaa000000000005]
+========================================
+
+[DAVID]:
+Please list some hobbies for self-realization.
+
+[GEMINI]:
+This is the stale placeholder body that got duplicated into every later slot.
+
+========================================
+CONVERSATION 6: Stub overwrite C
+[id: aaaa000000000006]
+========================================
+
+[DAVID]:
+Please list some hobbies for self-realization.
+
+[GEMINI]:
+This is the stale placeholder body that got duplicated into every later slot.
+
+========================================
+CONVERSATION 7: Stub overwrite D
+[id: aaaa000000000007]
+========================================
+
+[DAVID]:
+Please list some hobbies for self-realization.
+
+[GEMINI]:
+This is the stale placeholder body that got duplicated into every later slot.
+
+========================================
+CONVERSATION 8: Stub overwrite E
+[id: aaaa000000000008]
+========================================
+
+[DAVID]:
+Please list some hobbies for self-realization.
+
+[GEMINI]:
+This is the stale placeholder body that got duplicated into every later slot.

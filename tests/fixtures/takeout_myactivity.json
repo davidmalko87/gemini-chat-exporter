@@ -1,0 +1,26 @@
+[
+  {
+    "header": "Gemini Apps",
+    "title": "Prompted What is the capital of France?",
+    "titleUrl": "https://gemini.google.com/app/cccc000000000001",
+    "time": "2025-06-01T10:00:00.000Z",
+    "products": ["Gemini Apps"]
+  },
+  {
+    "header": "Gemini Apps",
+    "title": "Prompted Explain recursion briefly.",
+    "titleUrl": "https://gemini.google.com/app/cccc000000000002",
+    "time": "2025-06-02T11:00:00.000Z",
+    "products": ["Gemini Apps"],
+    "subtitles": [
+      {"name": "Recursion is when a function calls itself."}
+    ]
+  },
+  {
+    "header": "Search",
+    "title": "Searched for cat pictures",
+    "titleUrl": "https://www.google.com/search?q=cat+pictures",
+    "time": "2025-06-02T11:05:00.000Z",
+    "products": ["Search"]
+  }
+]

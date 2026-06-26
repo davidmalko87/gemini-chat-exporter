@@ -1,0 +1,22 @@
+{
+  "conversations": [
+    {
+      "id": "cccc000000000001",
+      "title": "Capital of France",
+      "create_time": "2025-06-01T10:00:00Z",
+      "entries": [
+        {"role": "user", "text": "What is the capital of France?"},
+        {"role": "model", "text": "The capital of France is Paris."}
+      ]
+    },
+    {
+      "id": "cccc000000000002",
+      "title": "Recursion explained",
+      "create_time": "2025-06-02T11:00:00Z",
+      "messages": [
+        {"author": "User", "content": "Explain recursion briefly."},
+        {"author": "Model", "content": "A function that calls itself."}
+      ]
+    }
+  ]
+}

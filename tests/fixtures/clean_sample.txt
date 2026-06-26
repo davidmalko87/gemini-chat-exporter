@@ -1,0 +1,43 @@
+
+========================================
+CONVERSATION 1: Capital of France
+[id: bbbb000000000001]
+========================================
+
+[DAVID]:
+What is the capital of France?
+
+[GEMINI]:
+The capital of France is Paris.
+
+========================================
+CONVERSATION 2: Recursion explained
+[id: bbbb000000000002]
+========================================
+
+[DAVID]:
+Explain recursion briefly.
+
+[GEMINI]:
+Recursion is when a function calls itself to solve smaller subproblems.
+
+========================================
+CONVERSATION 3: Photosynthesis
+[id: bbbb000000000003]
+========================================
+
+[DAVID]:
+How does photosynthesis work?
+
+[GEMINI]:
+Plants convert light, water and carbon dioxide into glucose and oxygen.
+
+========================================
+CONVERSATION 4: Generated image only
+[id: bbbb000000000004]
+========================================
+
+[DAVID]:
+Draw me a picture of a server room.
+
+[GEMINI]:

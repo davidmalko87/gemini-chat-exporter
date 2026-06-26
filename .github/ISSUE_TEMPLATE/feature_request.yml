@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest an improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+  - type: checkboxes
+    id: character
+    attributes:
+      label: Fit
+      options:
+        - label: This keeps the tool local-only (no servers, no credentials, no telemetry).

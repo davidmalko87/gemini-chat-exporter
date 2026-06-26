@@ -1,0 +1,45 @@
+name: Bug report
+description: Something is wrong with the exporter, verifier, or importer
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Do not paste real conversation content or personal
+        data.** Redact anything sensitive before submitting.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Userscript / console snippet (scraping)
+        - Verifier (gemini-export --verify)
+        - Takeout importer
+        - Converter (JSON / Markdown)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: selectors
+    attributes:
+      label: "If scraping: did the verifier or console report 'DOM may have changed'?"
+      description: Gemini's selectors are undocumented and break over time.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser + version, Python version, tool version.
+      placeholder: |
+        OS: Windows 11
+        Browser: Chrome 139
+        Python: 3.11
+        gemini-chat-exporter: 0.1.0
+    validations:
+      required: true

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  python:
+    name: Lint & test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff pytest
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Verify package imports
+        run: |
+          python -c "from gemini_export import __version__; print('version:', __version__)"
+          python -c "from gemini_export.verify import verify_conversations"
+          python -c "from gemini_export.takeout import import_takeout"
+          python -c "from gemini_export.parsers import load_conversations"
+          python -c "from gemini_export.cli import main"
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Verify entry point loads
+        run: python main.py --help
+
+  userscript:
+    name: Userscript syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Syntax-check the JavaScript
+        run: |
+          for f in userscript/*.js; do
+            echo "node --check $f"
+            node --check "$f"
+          done

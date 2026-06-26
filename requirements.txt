@@ -1,0 +1,3 @@
+# Runtime dependencies for the Gemini Chat Exporter Python toolkit.
+# The toolkit is otherwise pure standard library.
+python-dotenv>=1.0
