@@ -103,7 +103,9 @@ pip install -r requirements.txt
 ### 1. Capture your conversations
 
 - **Userscript:** open <https://gemini.google.com/>, sign in, click **"GCE: Export
-  all"** (bottom-right), and choose where to save `gemini_chats.ndjson`.
+  all"** (bottom-right), and choose where to save `gemini_chats.ndjson`. The script
+  auto-opens the left sidebar and scrolls the chat list first (Gemini renders the
+  list only when the sidebar is expanded), so you can start it from any view.
 - **Takeout (authoritative):** [Google Takeout](https://takeout.google.com/) >
   **My Activity** > **Gemini Apps** > JSON. (The standalone "Gemini" option exports
   Gems, not your chats.)

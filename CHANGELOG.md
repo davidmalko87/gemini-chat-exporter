@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-06-27
+
+### Fixed
+
+- **Userscript "No conversation links found" on a collapsed sidebar.** Verified
+  empirically against a live account: when Gemini's left sidebar is collapsed it
+  renders **zero** `a[href^="/app/"]` anchors, so the exporter found nothing and
+  (correctly) failed loud. The selectors were never broken. The exporter now runs
+  `ensureListLoaded()` first - it opens the sidebar, expands the "Recent" section,
+  and scrolls the virtualized list to materialize every conversation before
+  collecting. The error message now tells the user to open the sidebar.
+- **Harden the render-wait against transient DOM accumulation.** During SPA
+  navigation Gemini briefly leaves stale conversation containers in the DOM; the
+  stability check now requires the container *count* (not just text length) to be
+  stable across reads, so a conversation is never scraped mid-transition.
+
 ## [0.1.0] - 2026-06-27
 
 Initial release. Born out of a real incident: a previous DOM-scraper run silently
@@ -35,4 +51,5 @@ overwrote ~280 of 473 conversations with a single duplicated stub and reported
   flags the exact corruption that broke the previous run; ruff lint; CI matrix on
   Python 3.10-3.13 plus a `node --check` of the userscript.
 
+[0.1.1]: https://github.com/davidmalko87/gemini-chat-exporter/releases/tag/v0.1.1
 [0.1.0]: https://github.com/davidmalko87/gemini-chat-exporter/releases/tag/v0.1.0

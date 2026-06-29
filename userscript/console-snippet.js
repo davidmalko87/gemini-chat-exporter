@@ -79,7 +79,7 @@
 
   async function waitRender(id, prevPrompt) {
     const end = Date.now() + TIMEOUT;
-    let lastLen = -1;
+    let lastSig = "";
     let stable = 0;
     while (Date.now() < end) {
       await sleep(POLL);
@@ -88,12 +88,13 @@
       if (!s.n) continue;
       const fp = (firstPrompt(s.turns) || "").trim();
       if (!fp || (prevPrompt && fp === prevPrompt)) continue;
-      const len = s.turns.reduce((a, t) => a + t.text.length, 0);
-      if (len === lastLen) {
+      // Container count + text length must both be stable (never scrape mid-transition).
+      const sig = s.n + ":" + s.turns.reduce((a, t) => a + t.text.length, 0);
+      if (sig === lastSig) {
         if (++stable >= 1) return { ok: true, stable: true };
       } else {
         stable = 0;
-        lastLen = len;
+        lastSig = sig;
       }
     }
     if (pathId() === id) {
@@ -101,6 +102,28 @@
       if (fp && (!prevPrompt || fp !== prevPrompt)) return { ok: true, stable: false };
     }
     return { ok: false, stable: false };
+  }
+
+  // --- ensure the sidebar list is rendered (collapsed sidebar = 0 links) ---
+  const linkCount = () => document.querySelectorAll(SEL.link).length;
+  if (linkCount() === 0) {
+    const openBtn = document.querySelector('button[aria-label="Open sidebar"]');
+    if (openBtn) {
+      openBtn.click();
+      await sleep(1500);
+    }
+  }
+  const scroller = document.querySelector("infinite-scroller");
+  if (scroller) {
+    let last = -1, stable = 0;
+    for (let i = 0; i < 200 && stable < 3; i++) {
+      scroller.scrollTop = scroller.scrollHeight;
+      await sleep(400);
+      const n = linkCount();
+      if (n === last) stable++; else { stable = 0; last = n; }
+    }
+    scroller.scrollTop = 0;
+    await sleep(300);
   }
 
   // --- collect ---
@@ -117,7 +140,9 @@
   const list = Array.from(seen.values());
   if (!list.length) {
     throw new Error(
-      "No conversations found - Gemini's DOM may have changed; selectors need updating."
+      "No conversations found. Open the LEFT SIDEBAR so your chat list is visible, " +
+        "then re-run - Gemini renders the list only when the sidebar is expanded " +
+        "(a collapsed sidebar has zero conversation links)."
     );
   }
   console.log(`[GCE] ${list.length} conversations found.`);

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Chat Exporter
 // @namespace    https://github.com/davidmalko87/gemini-chat-exporter
-// @version      0.1.0
+// @version      0.1.1
 // @description  Export all your Google Gemini conversations to NDJSON, with content-identity validation so it can never silently save a stale/duplicate page.
 // @author       David Malko
 // @match        https://gemini.google.com/*
@@ -55,6 +55,12 @@
       "model-response",
       "message-content",
     ],
+    // --- Sidebar controls (the list only renders when the sidebar is expanded;
+    //     a COLLAPSED sidebar has zero conversation anchors -> the #1 failure) ---
+    openSidebarLabel: "Open sidebar", // button aria-label that expands the rail
+    chatsSectionId: "chats-expandable-section",
+    sectionToggle: '[data-test-id="expandable-section-toggle"]',
+    scroller: "infinite-scroller", // virtualized list container to scroll
     // --- Timing ---
     pollIntervalMs: 600, // gap between stability reads
     perConversationTimeoutMs: 20000, // hard cap before we give up / fallback
@@ -122,6 +128,63 @@
 
   // ----------------------------------------------------------- collect list
 
+  // Make sure the conversation list is actually rendered before we collect.
+  // The #1 real-world failure ("0 links found") is simply a COLLAPSED sidebar:
+  // when collapsed, Gemini renders zero `a[href^="/app/"]` anchors. This opens
+  // the sidebar, expands the "Recent" section, and scrolls the virtualized list
+  // to materialize every row. Returns the number of conversation links found.
+  async function ensureListLoaded(button) {
+    const count = () => document.querySelectorAll(CONFIG.sidebarLink).length;
+
+    // 1) Expand the sidebar rail if it is collapsed.
+    if (count() === 0) {
+      const openBtn = document.querySelector(
+        `button[aria-label="${CONFIG.openSidebarLabel}"]`
+      );
+      if (openBtn) {
+        openBtn.click();
+        await sleep(1500);
+      }
+    }
+
+    // 2) Ensure the "Recent" (chats) section is expanded.
+    const section = document.querySelector(`[data-test-id="${CONFIG.chatsSectionId}"]`);
+    if (section && !/\bexpanded\b/.test(section.className)) {
+      const toggle = Array.from(
+        document.querySelectorAll(CONFIG.sectionToggle)
+      ).find((b) => /recent/i.test(b.getAttribute("aria-label") || ""));
+      if (toggle) {
+        toggle.click();
+        await sleep(1000);
+      }
+    }
+
+    // 3) Scroll the virtualized list to the bottom in steps so every row loads,
+    //    then back to the top. Stop once the count stops growing.
+    const scroller = document.querySelector(CONFIG.scroller);
+    if (scroller) {
+      let last = -1;
+      let stable = 0;
+      for (let i = 0; i < 200 && stable < 3; i++) {
+        scroller.scrollTop = scroller.scrollHeight;
+        await sleep(400);
+        const n = count();
+        if (button) button.textContent = `GCE: loading list... ${n}`;
+        if (n === last) stable += 1;
+        else {
+          stable = 0;
+          last = n;
+        }
+      }
+      scroller.scrollTop = 0;
+      await sleep(300);
+    }
+
+    // 4) Final settle poll.
+    for (let i = 0; i < 10 && count() === 0; i++) await sleep(700);
+    return count();
+  }
+
   function collectConversations() {
     const seen = new Map();
     for (const a of document.querySelectorAll(CONFIG.sidebarLink)) {
@@ -172,7 +235,7 @@
    */
   async function waitForRender(targetId, prevFirstPrompt) {
     const deadline = Date.now() + CONFIG.perConversationTimeoutMs;
-    let lastLen = -1;
+    let lastSig = "";
     let stableHits = 0;
 
     while (Date.now() < deadline) {
@@ -192,14 +255,20 @@
       if (!fp) continue;
       if (prevFirstPrompt && fp === prevFirstPrompt) continue;
 
-      // (d) Text length must be stable across two consecutive reads.
-      const len = scraped.turns.reduce((n, t) => n + t.text.length, 0);
-      if (len === lastLen) {
+      // (d) Container COUNT and total text length must both be stable across two
+      //     consecutive reads. Including the count means we never scrape while
+      //     Gemini is mid-transition and stale containers from the previous
+      //     conversation are still being cleaned up.
+      const sig =
+        scraped.containerCount +
+        ":" +
+        scraped.turns.reduce((n, t) => n + t.text.length, 0);
+      if (sig === lastSig) {
         stableHits += 1;
         if (stableHits >= 1) return { ok: true, reason: "stable", stable: true };
       } else {
         stableHits = 0;
-        lastLen = len;
+        lastSig = sig;
       }
     }
 
@@ -277,12 +346,17 @@
   // ------------------------------------------------------------- main loop
 
   async function runExport(button) {
+    button.textContent = "GCE: loading list...";
+    await ensureListLoaded(button);
     const conversations = collectConversations();
     if (conversations.length === 0) {
       throw new Error(
-        "No conversation links found (selector '" +
+        "No conversation links found. Open the LEFT SIDEBAR so your chat list is " +
+          "visible, then click Export again - Gemini renders the list only when the " +
+          "sidebar is expanded (a collapsed sidebar has zero conversation links). " +
+          "If the sidebar IS open and this persists, the selector '" +
           CONFIG.sidebarLink +
-          "'). Gemini's DOM structure may have changed - selectors need updating."
+          "' may need updating."
       );
     }
     logInfo(`Found ${conversations.length} conversations.`);
