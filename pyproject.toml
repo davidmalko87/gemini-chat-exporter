@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gemini-chat-exporter"
-version = "0.1.1"
+version = "0.1.2"
 description = "Export & back up Google Gemini chat history to JSON + Markdown, with a corruption verifier"
 readme = "README.md"
 license = "MIT"

@@ -104,38 +104,34 @@
     return { ok: false, stable: false };
   }
 
-  // --- ensure the sidebar list is rendered (collapsed sidebar = 0 links) ---
+  // --- load + harvest the FULL list ---
+  // Collapsed sidebar = 0 links; the list is also LAZY-PAGINATED, so we jump to
+  // the bottom repeatedly and accumulate ids until no new ones appear.
   const linkCount = () => document.querySelectorAll(SEL.link).length;
   if (linkCount() === 0) {
     const openBtn = document.querySelector('button[aria-label="Open sidebar"]');
-    if (openBtn) {
-      openBtn.click();
-      await sleep(1500);
-    }
+    if (openBtn) { openBtn.click(); await sleep(1500); }
   }
+  const seen = new Map();
+  const absorb = () => {
+    for (const a of document.querySelectorAll(SEL.link)) {
+      const id = idOf(a.getAttribute("href"));
+      if (id && !seen.has(id))
+        seen.set(id, { id, title: (a.getAttribute("aria-label") || a.innerText || "").trim() || id });
+    }
+  };
+  absorb();
   const scroller = document.querySelector("infinite-scroller");
   if (scroller) {
-    let last = -1, stable = 0;
-    for (let i = 0; i < 200 && stable < 3; i++) {
+    let stable = 0, lastSize = -1;
+    for (let i = 0; i < 400 && stable < 5; i++) {
       scroller.scrollTop = scroller.scrollHeight;
-      await sleep(400);
-      const n = linkCount();
-      if (n === last) stable++; else { stable = 0; last = n; }
+      await sleep(600);
+      absorb();
+      console.log(`[GCE] loading list... ${seen.size}`);
+      if (seen.size === lastSize) stable++; else { stable = 0; lastSize = seen.size; }
     }
-    scroller.scrollTop = 0;
-    await sleep(300);
-  }
-
-  // --- collect ---
-  const seen = new Map();
-  for (const a of document.querySelectorAll(SEL.link)) {
-    const id = idOf(a.getAttribute("href"));
-    if (id && !seen.has(id))
-      seen.set(id, {
-        id,
-        title: (a.getAttribute("aria-label") || a.innerText || "").trim() || id,
-        el: a,
-      });
+    scroller.scrollTop = 0; await sleep(400); absorb();
   }
   const list = Array.from(seen.values());
   if (!list.length) {
@@ -153,7 +149,9 @@
   let failed = 0;
   for (let i = 0; i < list.length; i++) {
     const c = list[i];
-    if (c.el && document.contains(c.el)) c.el.click();
+    // Re-find a live anchor by id (must click one; a direct URL load won't render).
+    const live = document.querySelector(`a[href="/app/${c.id}"]`);
+    if (live) live.click();
     else {
       history.pushState({}, "", `/app/${c.id}`);
       window.dispatchEvent(new PopStateEvent("popstate"));

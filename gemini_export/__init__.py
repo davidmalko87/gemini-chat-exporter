@@ -8,4 +8,4 @@ Public API surface kept small and import-cheap so the CI smoke test can do
 `from gemini_export import __version__` without pulling heavy dependencies.
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"

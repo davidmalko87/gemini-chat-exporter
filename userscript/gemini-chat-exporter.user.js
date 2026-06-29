@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Chat Exporter
 // @namespace    https://github.com/davidmalko87/gemini-chat-exporter
-// @version      0.1.1
+// @version      0.1.2
 // @description  Export all your Google Gemini conversations to NDJSON, with content-identity validation so it can never silently save a stale/duplicate page.
 // @author       David Malko
 // @match        https://gemini.google.com/*
@@ -128,16 +128,33 @@
 
   // ----------------------------------------------------------- collect list
 
-  // Make sure the conversation list is actually rendered before we collect.
-  // The #1 real-world failure ("0 links found") is simply a COLLAPSED sidebar:
-  // when collapsed, Gemini renders zero `a[href^="/app/"]` anchors. This opens
-  // the sidebar, expands the "Recent" section, and scrolls the virtualized list
-  // to materialize every row. Returns the number of conversation links found.
-  async function ensureListLoaded(button) {
-    const count = () => document.querySelectorAll(CONFIG.sidebarLink).length;
+  // Snapshot the conversation anchors currently in the DOM.
+  function collectConversations() {
+    const seen = new Map();
+    for (const a of document.querySelectorAll(CONFIG.sidebarLink)) {
+      const id = idFromHref(a.getAttribute("href"));
+      if (!id || seen.has(id)) continue;
+      const title =
+        (a.getAttribute("aria-label") || a.innerText || "").trim() ||
+        `(untitled ${id})`;
+      seen.set(id, { id, title, el: a });
+    }
+    return Array.from(seen.values());
+  }
 
+  // Load and harvest the COMPLETE conversation list.
+  //
+  // Two real-world gotchas, both confirmed live:
+  //   * A COLLAPSED sidebar renders zero `a[href^="/app/"]` anchors (the #1
+  //     "0 links found" failure) - so we open it first.
+  //   * The list is LAZY-PAGINATED: only ~the first few hundred chats load
+  //     initially; scrolling to the bottom fetches the next page. A single
+  //     snapshot therefore misses the tail. So we repeatedly jump to the bottom
+  //     and ACCUMULATE ids across scroll steps until no new ones appear for
+  //     several consecutive rounds.
+  async function harvestConversations(button) {
     // 1) Expand the sidebar rail if it is collapsed.
-    if (count() === 0) {
+    if (document.querySelectorAll(CONFIG.sidebarLink).length === 0) {
       const openBtn = document.querySelector(
         `button[aria-label="${CONFIG.openSidebarLabel}"]`
       );
@@ -159,43 +176,36 @@
       }
     }
 
-    // 3) Scroll the virtualized list to the bottom in steps so every row loads,
-    //    then back to the top. Stop once the count stops growing.
+    // 3) Accumulate across scroll steps (handles pagination + virtualization).
+    const merged = new Map();
+    const absorb = () => {
+      for (const c of collectConversations()) {
+        if (!merged.has(c.id)) merged.set(c.id, c);
+      }
+    };
+    absorb();
+
     const scroller = document.querySelector(CONFIG.scroller);
     if (scroller) {
-      let last = -1;
       let stable = 0;
-      for (let i = 0; i < 200 && stable < 3; i++) {
+      let lastSize = -1;
+      for (let i = 0; i < 400 && stable < 5; i++) {
         scroller.scrollTop = scroller.scrollHeight;
-        await sleep(400);
-        const n = count();
-        if (button) button.textContent = `GCE: loading list... ${n}`;
-        if (n === last) stable += 1;
+        await sleep(600); // give a lazy page time to load before re-reading
+        absorb();
+        if (button) button.textContent = `GCE: loading list... ${merged.size}`;
+        if (merged.size === lastSize) stable += 1;
         else {
           stable = 0;
-          last = n;
+          lastSize = merged.size;
         }
       }
       scroller.scrollTop = 0;
-      await sleep(300);
+      await sleep(400);
+      absorb();
     }
 
-    // 4) Final settle poll.
-    for (let i = 0; i < 10 && count() === 0; i++) await sleep(700);
-    return count();
-  }
-
-  function collectConversations() {
-    const seen = new Map();
-    for (const a of document.querySelectorAll(CONFIG.sidebarLink)) {
-      const id = idFromHref(a.getAttribute("href"));
-      if (!id || seen.has(id)) continue;
-      const title =
-        (a.getAttribute("aria-label") || a.innerText || "").trim() ||
-        `(untitled ${id})`;
-      seen.set(id, { id, title, el: a });
-    }
-    return Array.from(seen.values());
+    return Array.from(merged.values());
   }
 
   // --------------------------------------------------------------- scraping
@@ -218,10 +228,16 @@
     return t ? t.text.trim() : "";
   }
 
-  // Navigate to a conversation via SPA routing (click, with history fallback).
+  // Navigate to a conversation via SPA routing. A direct /app/{id} page load
+  // only renders the shell (not the messages), so we MUST click a live sidebar
+  // anchor. The stored element can go stale after scrolling, so re-find it by id
+  // first; fall back to the stored element, then to history navigation.
   async function navigateTo(conv) {
-    if (conv.el && document.contains(conv.el)) {
-      conv.el.click();
+    const live =
+      document.querySelector(`a[href="/app/${conv.id}"]`) ||
+      (conv.el && document.contains(conv.el) ? conv.el : null);
+    if (live) {
+      live.click();
     } else {
       history.pushState({}, "", `/app/${conv.id}`);
       window.dispatchEvent(new PopStateEvent("popstate"));
@@ -347,8 +363,7 @@
 
   async function runExport(button) {
     button.textContent = "GCE: loading list...";
-    await ensureListLoaded(button);
-    const conversations = collectConversations();
+    const conversations = await harvestConversations(button);
     if (conversations.length === 0) {
       throw new Error(
         "No conversation links found. Open the LEFT SIDEBAR so your chat list is " +

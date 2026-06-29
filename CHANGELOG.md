@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-06-27
+
+### Fixed
+
+- **Userscript collected only a partial list (e.g. 333 of 540+ chats).** Confirmed
+  live: Gemini's chat list is **lazy-paginated** - only the first few hundred
+  conversations load initially, and scrolling to the bottom fetches the next page.
+  The previous scroll-then-snapshot stopped early (during a pagination pause) and
+  captured a single incomplete snapshot. The exporter now harvests with
+  `harvestConversations()`: it repeatedly jumps to the bottom and **accumulates
+  ids across scroll steps** until no new ones appear for several rounds.
+- Navigation now re-finds a live sidebar anchor by id at click time (a stored
+  element can go stale after scrolling, and a direct `/app/{id}` load renders only
+  the shell, so clicking a live anchor is required).
+
 ## [0.1.1] - 2026-06-27
 
 ### Fixed
@@ -51,5 +66,6 @@ overwrote ~280 of 473 conversations with a single duplicated stub and reported
   flags the exact corruption that broke the previous run; ruff lint; CI matrix on
   Python 3.10-3.13 plus a `node --check` of the userscript.
 
+[0.1.2]: https://github.com/davidmalko87/gemini-chat-exporter/releases/tag/v0.1.2
 [0.1.1]: https://github.com/davidmalko87/gemini-chat-exporter/releases/tag/v0.1.1
 [0.1.0]: https://github.com/davidmalko87/gemini-chat-exporter/releases/tag/v0.1.0
