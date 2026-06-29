@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-06-27
+
+### Fixed
+
+- **Exports stalled partway with a runaway FAIL count** (e.g. "233/542 (FAIL 50)").
+  Diagnosed live: on a long run the left sidebar can collapse mid-export (a very
+  large conversation spikes memory and the SPA sheds the list), dropping every
+  `a[href^="/app/"]` anchor. Navigation then fell back to a URL change, which
+  Gemini renders as a blank shell, so each remaining chat burned the full ~20s
+  timeout and was marked FAIL. Now `navigateTo()` calls `ensureSidebarOpen()`
+  first (re-opens the rail if it collapsed) and falls back to scrolling the list
+  to bring the target anchor into view; if no clickable anchor can be found the
+  chat is marked failed immediately instead of grinding for 20s on a blank shell.
+  Verified live: recovered from a forced collapse and navigated to conversation
+  #500 of 542.
+
 ## [0.1.2] - 2026-06-27
 
 ### Fixed
@@ -66,6 +82,7 @@ overwrote ~280 of 473 conversations with a single duplicated stub and reported
   flags the exact corruption that broke the previous run; ruff lint; CI matrix on
   Python 3.10-3.13 plus a `node --check` of the userscript.
 
+[0.1.3]: https://github.com/davidmalko87/gemini-chat-exporter/releases/tag/v0.1.3
 [0.1.2]: https://github.com/davidmalko87/gemini-chat-exporter/releases/tag/v0.1.2
 [0.1.1]: https://github.com/davidmalko87/gemini-chat-exporter/releases/tag/v0.1.1
 [0.1.0]: https://github.com/davidmalko87/gemini-chat-exporter/releases/tag/v0.1.0

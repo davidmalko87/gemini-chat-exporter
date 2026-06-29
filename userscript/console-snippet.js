@@ -149,15 +149,31 @@
   let failed = 0;
   for (let i = 0; i < list.length; i++) {
     const c = list[i];
-    // Re-find a live anchor by id (must click one; a direct URL load won't render).
-    const live = document.querySelector(`a[href="/app/${c.id}"]`);
-    if (live) live.click();
-    else {
-      history.pushState({}, "", `/app/${c.id}`);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+    // Re-open the sidebar if it collapsed mid-run (drops all anchors), then click
+    // a live anchor by id (a direct URL load only renders the shell).
+    if (document.querySelectorAll(SEL.link).length === 0) {
+      const o = document.querySelector('button[aria-label="Open sidebar"]');
+      if (o) { o.click(); await sleep(1200); }
     }
-    await sleep(400);
-    const v = await waitRender(c.id, prevPrompt);
+    let anchor = document.querySelector(`a[href="/app/${c.id}"]`);
+    if (!anchor && scroller) {
+      scroller.scrollTop = 0; await sleep(150);
+      for (let k = 0; k < 300 && !anchor; k++) {
+        const prev = scroller.scrollTop;
+        scroller.scrollTop = Math.min(scroller.scrollTop + scroller.clientHeight * 0.8, scroller.scrollHeight);
+        await sleep(180);
+        anchor = document.querySelector(`a[href="/app/${c.id}"]`);
+        if (scroller.scrollTop === prev) break;
+      }
+    }
+    let v;
+    if (anchor) {
+      anchor.click();
+      await sleep(400);
+      v = await waitRender(c.id, prevPrompt);
+    } else {
+      v = { ok: false, stable: false };
+    }
     if (!v.ok) {
       failed++;
       out.push(JSON.stringify({ id: c.id, title: c.title, turns: [], source: "scraper", flags: ["failed"] }));

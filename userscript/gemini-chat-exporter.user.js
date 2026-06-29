@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Chat Exporter
 // @namespace    https://github.com/davidmalko87/gemini-chat-exporter
-// @version      0.1.2
+// @version      0.1.3
 // @description  Export all your Google Gemini conversations to NDJSON, with content-identity validation so it can never silently save a stale/duplicate page.
 // @author       David Malko
 // @match        https://gemini.google.com/*
@@ -228,21 +228,58 @@
     return t ? t.text.trim() : "";
   }
 
-  // Navigate to a conversation via SPA routing. A direct /app/{id} page load
-  // only renders the shell (not the messages), so we MUST click a live sidebar
-  // anchor. The stored element can go stale after scrolling, so re-find it by id
-  // first; fall back to the stored element, then to history navigation.
-  async function navigateTo(conv) {
-    const live =
-      document.querySelector(`a[href="/app/${conv.id}"]`) ||
-      (conv.el && document.contains(conv.el) ? conv.el : null);
-    if (live) {
-      live.click();
-    } else {
-      history.pushState({}, "", `/app/${conv.id}`);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+  // Re-open the sidebar if it has collapsed (which drops every conversation
+  // anchor). This happens mid-run on long exports - e.g. a very large
+  // conversation spikes memory and the SPA sheds the list - and without this the
+  // loop falls back to URL navigation, which renders only the shell, so every
+  // remaining chat times out. Cheap no-op when the sidebar is already open.
+  async function ensureSidebarOpen() {
+    if (document.querySelectorAll(CONFIG.sidebarLink).length > 0) return;
+    const openBtn = document.querySelector(
+      `button[aria-label="${CONFIG.openSidebarLabel}"]`
+    );
+    if (openBtn) {
+      openBtn.click();
+      await sleep(1200);
     }
+  }
+
+  // Defensive: if a target anchor is not in the DOM (virtualized out on narrow
+  // windows), scroll the list from the top until it appears.
+  async function scrollToFindAnchor(id) {
+    const sel = `a[href="/app/${id}"]`;
+    let a = document.querySelector(sel);
+    if (a) return a;
+    const scroller = document.querySelector(CONFIG.scroller);
+    if (!scroller) return null;
+    scroller.scrollTop = 0;
+    await sleep(200);
+    for (let i = 0; i < 300; i++) {
+      a = document.querySelector(sel);
+      if (a) return a;
+      const prev = scroller.scrollTop;
+      scroller.scrollTop = Math.min(
+        scroller.scrollTop + scroller.clientHeight * 0.8,
+        scroller.scrollHeight
+      );
+      await sleep(200);
+      if (scroller.scrollTop === prev) break; // reached the bottom
+    }
+    return document.querySelector(sel);
+  }
+
+  // Navigate to a conversation via SPA routing. A direct /app/{id} page load only
+  // renders the shell (not the messages), so we MUST click a live sidebar anchor.
+  // Returns true on success, false if no clickable anchor could be found (the
+  // caller then marks the conversation failed instead of scraping a blank shell).
+  async function navigateTo(conv) {
+    await ensureSidebarOpen();
+    let anchor = document.querySelector(`a[href="/app/${conv.id}"]`);
+    if (!anchor) anchor = await scrollToFindAnchor(conv.id);
+    if (!anchor) return false;
+    anchor.click();
     await sleep(CONFIG.settleAfterNavMs);
+    return true;
   }
 
   /*
@@ -394,8 +431,10 @@
         continue;
       }
 
-      await navigateTo(conv);
-      const verdict = await waitForRender(conv.id, prevFirstPrompt);
+      const navigated = await navigateTo(conv);
+      const verdict = navigated
+        ? await waitForRender(conv.id, prevFirstPrompt)
+        : { ok: false, reason: "no-anchor", stable: false };
 
       if (!verdict.ok) {
         failed += 1;
