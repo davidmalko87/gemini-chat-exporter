@@ -50,6 +50,32 @@ For backing up other platforms, see the sibling project
 
 ---
 
+## How it works
+
+It is **two steps**, and they use two different tools:
+
+1. **Capture** — a browser userscript adds an **"Export all"** button to Gemini.
+   It clicks through every conversation and streams them to one file,
+   `gemini_chats.ndjson`. *(This part runs in your browser because Gemini only
+   renders chats in the logged-in UI.)*
+2. **Process** — a small Python toolkit reads that file, **verifies** it isn't
+   corrupt, and **converts** it to readable per-conversation JSON + Markdown.
+
+```
+ Browser (userscript)            Your computer (Python)
+ ┌──────────────────┐            ┌───────────────────────────────┐
+ │ "Export all" btn │ ─────────► │ gemini_chats.ndjson           │
+ │  scrapes chats   │   saves    │   → python main.py --verify   │
+ └──────────────────┘            │   → python main.py --convert  │
+                                 │   → out/*.json + *.md         │
+                                 └───────────────────────────────┘
+```
+
+> Don't want to scrape? Skip step 1 and feed a **Google Takeout** export into
+> step 2 instead (`--import-takeout`). See [Quick Start](#quick-start).
+
+---
+
 ## Two ways to export — and why it matters
 
 | Route | Fidelity | Cost / risk | Role |
@@ -81,14 +107,26 @@ the scraper got wrong from Takeout.
 
 ## Install
 
-**The exporter (browser side)** — install a userscript manager
-([Tampermonkey](https://www.tampermonkey.net/) / Greasemonkey), then add
-[`userscript/gemini-chat-exporter.user.js`](userscript/gemini-chat-exporter.user.js).
-No userscript manager? Paste
-[`userscript/console-snippet.js`](userscript/console-snippet.js) into the DevTools
-console instead.
+You install **two pieces** — the browser userscript (captures chats) and the
+Python toolkit (verifies + converts).
 
-**The toolkit (verify / import / convert)** — clone and run with Python **3.10+**:
+### 1. Browser userscript — the capture step
+
+1. Install a userscript manager — **[Tampermonkey](https://www.tampermonkey.net/)**
+   (Chrome, Edge, Firefox, Safari) is the easiest.
+2. Open this raw file and click **Install** in the dialog Tampermonkey shows:
+   **[gemini-chat-exporter.user.js](https://raw.githubusercontent.com/davidmalko87/gemini-chat-exporter/master/userscript/gemini-chat-exporter.user.js)**
+3. In the Tampermonkey dashboard, confirm the script header reads
+   **`@version 0.1.3`** (or newer). To update later: Tampermonkey ▸ *Check for
+   userscript updates*.
+
+> **No userscript manager?** You don't need one. Copy all of
+> [`userscript/console-snippet.js`](userscript/console-snippet.js), open
+> <https://gemini.google.com/>, press **F12 ▸ Console**, paste it, and press Enter.
+
+### 2. Python toolkit — the verify / convert step
+
+Requires **Python 3.10+**.
 
 ```bash
 git clone https://github.com/davidmalko87/gemini-chat-exporter.git
@@ -96,43 +134,82 @@ cd gemini-chat-exporter
 pip install -r requirements.txt
 ```
 
+Check it works:
+
+```bash
+python main.py --help
+```
+
 ---
 
 ## Quick Start
 
-### 1. Capture your conversations
+> Install both pieces first (see [Install](#install)).
 
-- **Userscript:** open <https://gemini.google.com/>, sign in, click **"GCE: Export
-  all"** (bottom-right), and choose where to save `gemini_chats.ndjson`. The script
-  auto-opens the left sidebar and scrolls the chat list first (Gemini renders the
-  list only when the sidebar is expanded), so you can start it from any view.
-- **Takeout (authoritative):** [Google Takeout](https://takeout.google.com/) >
-  **My Activity** > **Gemini Apps** > JSON. (The standalone "Gemini" option exports
-  Gems, not your chats.)
+### Step 1 — Capture your chats from the browser
 
-### 2. Verify (do this every time)
+1. Open **<https://gemini.google.com/>** and make sure you are **signed in**.
+2. Click the blue **"GCE: Export all"** button in the **bottom-right** of the page.
+3. Watch the button — it walks through these states:
+   - **`GCE: loading list... N`** — it opens the sidebar and scrolls your whole
+     chat list (can take a minute for hundreds of chats).
+   - A **save dialog** appears — choose where to put **`gemini_chats.ndjson`**.
+     *(If your browser doesn't support the picker, the file just downloads at the
+     end instead.)*
+   - **`GCE: 12/542`** — it exports each conversation in turn. **Keep the tab open
+     and in front.** A full history takes roughly **30–45 minutes**.
+4. When it's done you get an alert: *"Done. N saved, M skipped, K failed..."*.
+
+It is built to be safe and unattended-friendly:
+
+- opens the sidebar if collapsed, and **re-opens it if it collapses mid-run**;
+- loads the **full** lazy-paginated list (not just the first page);
+- **skips chats already saved**, so you can stop and re-run any time (resume);
+- **never saves a stale or duplicate page** — those are marked `failed` and
+  retried on the next run, instead of silently corrupting your backup.
+
+> **Prefer not to scrape?** Use Google Takeout as the source instead — it's the
+> authoritative route. At [takeout.google.com](https://takeout.google.com/):
+> *Deselect all* ▸ select **"My Activity"** ▸ set format to **JSON** ▸ click
+> *"All activity data included"* and keep only **"Gemini Apps"** ▸ export.
+> (The standalone **"Gemini"** product exports *Gems*, not your chats.) Then go
+> to Step 3 and use `--import-takeout`.
+
+### Step 2 — Verify the capture (always do this)
 
 ```bash
-python main.py --verify gemini_chats.ndjson        # exits non-zero if corrupt
+python main.py --verify gemini_chats.ndjson
 ```
 
-### 3. Convert to JSON + Markdown
+You want **`RESULT: PASS`**. If it fails, the report names exactly what's wrong
+(duplicate bodies, a stale-page run, missing chats) — **don't trust the export
+until it passes**. (`--verify` exits non-zero on failure, so it fits cron/CI.)
+
+### Step 3 — Convert to JSON + Markdown
 
 ```bash
+# from a scraper capture:
 python main.py --convert gemini_chats.ndjson --out ./out
+
+# ...or straight from a Google Takeout export:
 python main.py --import-takeout "Takeout/My Activity/Gemini Apps/MyActivity.json" --out ./out
-python main.py --reconcile gemini_chats.ndjson MyActivity.json   # recover corrupt rows
 ```
 
-### Or use the interactive menu
+You get one `.json` and one `.md` per conversation in `./out/`, plus a
+`manifest.json` (checksums + a `complete` flag). To recover chats a scrape got
+wrong, diff against Takeout:
 
 ```bash
-python main.py
+python main.py --reconcile gemini_chats.ndjson MyActivity.json
 ```
+
+### Don't like flags? Use the menu
+
+Run `python main.py` with **no arguments** for an interactive menu:
 
 ```
 ==================================================
-  Gemini Chat Exporter v0.1.0
+  Gemini Chat Exporter v0.1.3
 ==================================================
   --- Verify ---
   1) Verify / audit an export for corruption
@@ -143,6 +220,21 @@ python main.py
   4) Reconcile a scraper export against Takeout
   0) Exit
 ```
+
+---
+
+## Troubleshooting
+
+| What you see | Why, and what to do |
+|---|---|
+| **"No conversation links found"** | The left sidebar was collapsed (only an issue on v0.1.1 and earlier). **Update to v0.1.3+** — it opens the sidebar automatically. One-off workaround: open the left sidebar so your chats are visible, then click Export. |
+| **Total looks too low** (e.g. `X/333` when you have more chats) | An old version didn't load the lazy-paginated list. **Update to v0.1.2+.** |
+| **Looks stuck; `FAIL` keeps climbing** | On a long run the sidebar collapsed and an old version couldn't recover. **Update to v0.1.3+** (it re-opens the sidebar and continues). |
+| **A few chats marked `failed`** | Normal for very large conversations that don't finish rendering in time. Click **"Export all"** again — it retries only the failures (resume skips the rest). |
+| **Where did the file go?** | Wherever you chose in the save dialog. If your browser lacks that dialog, it's in your **Downloads** as `gemini_chats.ndjson`. |
+| **`python: command not found`** | Try `python3`, or install **Python 3.10+**. |
+| **Verify says `FAIL`** | That's the safety net doing its job. Read the report, then re-capture or recover the flagged chats from Takeout before trusting the backup. |
+| **Selectors broke after a Gemini update** | If a capture suddenly returns nothing, Gemini changed its DOM. Update the `CONFIG` selectors at the top of [`userscript/gemini-chat-exporter.user.js`](userscript/gemini-chat-exporter.user.js) (or open an issue). |
 
 ---
 
@@ -195,7 +287,8 @@ gemini-chat-exporter/
 ├── main.py                       # Entry point - interactive menu + CLI flags
 ├── userscript/
 │   ├── gemini-chat-exporter.user.js   # Hardened Tampermonkey scraper
-│   └── console-snippet.js             # DevTools-paste fallback
+│   ├── console-snippet.js             # DevTools-paste fallback
+│   └── README.md                      # Browser-capture install + usage
 ├── gemini_export/
 │   ├── models.py                 # Conversation/Turn model + body hashing (dup detection)
 │   ├── config.py                 # Optional .env loader and validation
