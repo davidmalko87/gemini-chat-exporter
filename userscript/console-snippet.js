@@ -5,7 +5,7 @@
  *   1. Open https://gemini.google.com/ and sign in.
  *   2. Open DevTools (F12) -> Console.
  *   3. Paste this whole file and press Enter.
- *   4. When prompted, choose where to save gemini_chats.ndjson.
+ *   4. Keep the tab open; gemini_chats.ndjson downloads when it finishes.
  *   5. Verify the result:  gemini-export --verify gemini_chats.ndjson
  *
  * This is the compact sibling of gemini-chat-exporter.user.js and keeps the same

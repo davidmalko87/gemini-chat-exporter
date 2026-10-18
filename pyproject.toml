@@ -13,12 +13,21 @@ requires-python = ">=3.10"
 keywords = [
     "gemini",
     "google-gemini",
+    "gemini-ai",
     "chat-export",
+    "chat-history",
+    "conversation-export",
     "backup",
+    "archiving",
+    "data-export",
+    "data-portability",
     "google-takeout",
     "markdown",
     "json",
     "userscript",
+    "tampermonkey",
+    "web-scraping",
+    "cli",
 ]
 dependencies = [
     "python-dotenv>=1.0",

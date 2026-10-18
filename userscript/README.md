@@ -5,7 +5,10 @@ an **"Export all"** button to Gemini and saves every conversation to a single
 `gemini_chats.ndjson` file. You then verify and convert that file with the Python
 toolkit in the repo root.
 
-Two equivalent options — pick one.
+Two options — pick one. The Tampermonkey script is the full tool; the console
+snippet is a minimal fallback with **no resume, no save dialog and no duplicate
+retry** — it keeps everything in memory and downloads one file at the end, so
+closing the tab loses the run.
 
 ## Option A: Tampermonkey (recommended)
 
@@ -24,20 +27,25 @@ Two equivalent options — pick one.
 
 1. On <https://gemini.google.com/>, click **"GCE: Export all"** (bottom-right; with
    the console snippet it starts immediately).
-2. It shows `loading list... N`, asks where to save `gemini_chats.ndjson`, then
-   shows `X/542` as it works. Keep the tab open and in front; a big history takes
-   ~30–45 min.
-3. Verify it with the Python toolkit:
+2. It shows `loading list... N`, may ask where to save `gemini_chats.ndjson`
+   (Tampermonkey only — otherwise the file downloads at the end), then shows
+   `X/542` as it works. Keep the tab open and in front until it finishes; a big
+   history takes ~30–45 min.
+3. Verify it with the Python toolkit (`pip install gemini-chat-exporter`):
    ```bash
-   python main.py --verify gemini_chats.ndjson
+   gemini-export --verify gemini_chats.ndjson
    ```
+   From a clone, use `python main.py --verify gemini_chats.ndjson`.
 
 ## What it does for you
 
 - Opens the sidebar (and re-opens it if it collapses mid-run) so the chat list is loaded.
 - Loads the **full** lazy-paginated list, not just the first page.
-- **Resume:** skips chats already saved (stored in `localStorage`), so you can re-run safely.
-- **Never saves a stale/duplicate page** — those are marked `failed` and retried next run.
+- **Resume** (Tampermonkey): skips chats already saved (stored in `localStorage`). A
+  re-run's file holds only the newly captured chats, so don't save it over the first
+  one — see the main [Troubleshooting](../README.md#troubleshooting) table.
+- **Refuses stale/duplicate pages it detects** — those are marked `failed` (the
+  Tampermonkey script retries them on the next run).
 
 ## Output format
 

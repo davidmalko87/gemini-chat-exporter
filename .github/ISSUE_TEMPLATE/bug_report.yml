@@ -29,7 +29,7 @@ body:
   - type: input
     id: selectors
     attributes:
-      label: "If scraping: did the verifier or console report 'DOM may have changed'?"
+      label: "If scraping: did it report 'No conversation links found', or mark most chats failed?"
       description: Gemini's selectors are undocumented and break over time.
   - type: textarea
     id: environment
